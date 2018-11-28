@@ -33,10 +33,10 @@ void setup() {
 
     //clean FS, for testing
     SPIFFS.format();
-  
+
     //read configuration from FS json
     Serial.println("mounting FS...");
-  
+
     if (SPIFFS.begin()) {
       Serial.println("mounted file system");
       if (SPIFFS.exists("/config.json")) {
@@ -48,18 +48,18 @@ void setup() {
           size_t size = configFile.size();
           // Allocate a buffer to store contents of the file.
           std::unique_ptr<char[]> buf(new char[size]);
-  
+
           configFile.readBytes(buf.get(), size);
           DynamicJsonBuffer jsonBuffer;
           JsonObject& json = jsonBuffer.parseObject(buf.get());
           json.printTo(Serial);
           if (json.success()) {
             Serial.println("\nparsed json");
-  
+
 //            strcpy(mqtt_server, json["mqtt_server"]);
 //            strcpy(mqtt_port, json["mqtt_port"]);
             strcpy(blynk_token, json["blynk_token"]);
-  
+
           } else {
             Serial.println("failed to load json config");
           }
@@ -79,24 +79,24 @@ void setup() {
 //    WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, 40);
 //    WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 6);
     WiFiManagerParameter custom_blynk_token("blynk", "Blynk token", blynk_token, 32);
-  
+
     //WiFiManager
     //Local intialization. Once its business is done, there is no need to keep it around
     WiFiManager wifiManager;
-  
+
     //set config save notify callback
     wifiManager.setSaveConfigCallback(saveConfigCallback);
-  
+
     //set static ip
 //    wifiManager.setSTAStaticIPConfig(IPAddress(10,0,1,99), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
-    
+
     //add all your parameters here
 //    wifiManager.addParameter(&custom_mqtt_server);
 //    wifiManager.addParameter(&custom_mqtt_port);
     wifiManager.addParameter(&custom_blynk_token);
     //reset saved settings
     wifiManager.resetSettings();
-    
+
     //set custom ip for portal
     //wifiManager.setAPStaticIPConfig(IPAddress(10,0,1,1), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
 
@@ -112,7 +112,7 @@ void setup() {
       //reset and try again, or maybe put it to deep sleep
       ESP.reset();
       delay(5000);
-    }    
+    }
     //if you get here you have connected to the WiFi
     Serial.println("connected...yeey :)");
 
@@ -129,18 +129,18 @@ void setup() {
 //      json["mqtt_server"] = mqtt_server;
 //      json["mqtt_port"] = mqtt_port;
       json["blynk_token"] = blynk_token;
-  
+
       File configFile = SPIFFS.open("/config.json", "w");
       if (!configFile) {
         Serial.println("failed to open config file for writing");
       }
-  
+
       json.printTo(Serial);
       json.printTo(configFile);
       configFile.close();
       //end save
     }
-  
+
     Serial.println("local ip");
     Serial.println(WiFi.localIP());
 
@@ -154,6 +154,42 @@ void setup() {
 //{
   // This command writes Arduino's uptime in seconds to Virtual Pin (5)
 //  Blynk.virtualWrite(PIN_UPTIME, millis() / 1000);
+
+/*
+ *  This is from mos
+ */
+//Blynk.setHandler(function(conn, cmd, pin, val, id) {
+//  let ram = Sys.free_ram() / 1024;
+//  if (cmd === 'vr') {
+//    // When reading any virtual pin, report free RAM in KB
+//    Blynk.virtualWrite(conn, pin, ram, id);
+//  } else if (cmd === 'vw') {
+//    // Writing to virtual pin translate to writing to physical pin
+//    GPIO.set_mode(pin, GPIO.MODE_OUTPUT);
+//    GPIO.write(pin, val);
+//  }
+//  print('BLYNK JS handler, ram', ram, cmd, id, pin, val);
+//}, null);
+
+// BLYNK_CONNECTED() {
+//     Blynk.syncAll();
+// }
+//
+// //here handlers for sync command
+// BLYNK_WRITE(function(pin, val) {
+//     GPIO.set_mode(GPIO.MODE_OUTPUT);
+//     GPIO.write(pin, val);
+// });
+
+BLYNK_WRITE(inputPin) {
+  if (param.asInt()) { // act only on the HIGH and not the LOW of the momentary
+    digitalWrite(outputPin, !digitalRead(outputPin));  // invert pin state just once
+    tripWire.setTimeout(1000L, [](){
+      digitalWrite(outputPin, !digitalRead(outputPin));  // then invert it back after 1000ms
+    });
+  }
+}
+
 //}
 
 void loop() {
