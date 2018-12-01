@@ -13,3 +13,4 @@
 ![Connect Wifi](https://raw.githubusercontent.com/dasperg/iot-blynk-remote-switch/master/docs/connect-wifi.png)
 8. Click `save`
 9. Now you can go to blynk app and check device connection. It may take few minutes.
+10. :+1:
