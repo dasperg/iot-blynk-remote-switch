@@ -10,13 +10,14 @@
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
 // Use Virtual pin 5 for uptime display
-#define PIN_UPTIME V5
+#define INPUT_PIN V5
+// Use physical pin 2 to output
+#define OUTPUT_PIN 5
+
+#define LED_PIN 2
 
 WiFiClient client;
 
-//define your default values here, if there are different values in config.json, they are overwritten.
-//char mqtt_server[40];
-//char mqtt_port[6] = "8080";
 char blynk_token[34];
 
 //flag for saving data
@@ -30,6 +31,10 @@ void saveConfigCallback () {
 
 void setup() {
     Serial.begin(115200);
+    pinMode(OUTPUT_PIN, OUTPUT);
+    digitalWrite(OUTPUT_PIN, HIGH);
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);
 
     //clean FS, for testing
     SPIFFS.format();
@@ -53,13 +58,10 @@ void setup() {
           DynamicJsonBuffer jsonBuffer;
           JsonObject& json = jsonBuffer.parseObject(buf.get());
           json.printTo(Serial);
+
           if (json.success()) {
             Serial.println("\nparsed json");
-
-//            strcpy(mqtt_server, json["mqtt_server"]);
-//            strcpy(mqtt_port, json["mqtt_port"]);
             strcpy(blynk_token, json["blynk_token"]);
-
           } else {
             Serial.println("failed to load json config");
           }
@@ -76,36 +78,17 @@ void setup() {
     // The extra parameters to be configured (can be either global or just in the setup)
     // After connecting, parameter.getValue() will get you the configured value
     // id/name placeholder/prompt default length
-//    WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, 40);
-//    WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 6);
     WiFiManagerParameter custom_blynk_token("blynk", "Blynk token", blynk_token, 32);
-
-    //WiFiManager
-    //Local intialization. Once its business is done, there is no need to keep it around
     WiFiManager wifiManager;
-
-    //set config save notify callback
     wifiManager.setSaveConfigCallback(saveConfigCallback);
-
-    //set static ip
-//    wifiManager.setSTAStaticIPConfig(IPAddress(10,0,1,99), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
-
-    //add all your parameters here
-//    wifiManager.addParameter(&custom_mqtt_server);
-//    wifiManager.addParameter(&custom_mqtt_port);
     wifiManager.addParameter(&custom_blynk_token);
+
     //reset saved settings
     wifiManager.resetSettings();
 
-    //set custom ip for portal
-    //wifiManager.setAPStaticIPConfig(IPAddress(10,0,1,1), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
-
     //fetches ssid and pass from eeprom and tries to connect
-    //if it does not connect it starts an access point with the specified name
-    //here  "AutoConnectAP"
     //and goes into a blocking loop awaiting configuration
-    //wifiManager.autoConnect("AutoConnectAP");
-    //or use this for auto generated name ESP + ChipID
+    //uses auto generated name ESP + ChipID
     if (!wifiManager.autoConnect()) {
       Serial.println("failed to connect and hit timeout");
       delay(3000);
@@ -117,8 +100,6 @@ void setup() {
     Serial.println("connected...yeey :)");
 
     //read updated parameters
-//    strcpy(mqtt_server, custom_mqtt_server.getValue());
-//    strcpy(mqtt_port, custom_mqtt_port.getValue());
     strcpy(blynk_token, custom_blynk_token.getValue());
 
     //save the custom parameters to FS
@@ -126,8 +107,6 @@ void setup() {
       Serial.println("saving config");
       DynamicJsonBuffer jsonBuffer;
       JsonObject& json = jsonBuffer.createObject();
-//      json["mqtt_server"] = mqtt_server;
-//      json["mqtt_port"] = mqtt_port;
       json["blynk_token"] = blynk_token;
 
       File configFile = SPIFFS.open("/config.json", "w");
@@ -171,28 +150,42 @@ void setup() {
 //  print('BLYNK JS handler, ram', ram, cmd, id, pin, val);
 //}, null);
 
-// BLYNK_CONNECTED() {
-//     Blynk.syncAll();
-// }
-//
-// //here handlers for sync command
-// BLYNK_WRITE(function(pin, val) {
-//     GPIO.set_mode(GPIO.MODE_OUTPUT);
-//     GPIO.write(pin, val);
-// });
+BLYNK_CONNECTED() {
+    Blynk.syncAll();
+}
 
-BLYNK_WRITE(inputPin) {
-  if (param.asInt()) { // act only on the HIGH and not the LOW of the momentary
-    digitalWrite(outputPin, !digitalRead(outputPin));  // invert pin state just once
-    tripWire.setTimeout(1000L, [](){
-      digitalWrite(outputPin, !digitalRead(outputPin));  // then invert it back after 1000ms
-    });
+BLYNK_WRITE(INPUT_PIN) {
+  Serial.print("inputPin: ");
+  Serial.println(INPUT_PIN);
+  if (param.asInt()) {
+    digitalWrite(OUTPUT_PIN, LOW);
+    Serial.print("Output: ");
+    Serial.println(HIGH);
+  } else {
+    digitalWrite(OUTPUT_PIN, HIGH);
+    Serial.print("Output: ");
+    Serial.println(LOW);
+  }
+  Serial.print("PinValue: ");
+  Serial.println(digitalRead(OUTPUT_PIN));
+}
+
+// BLYNK_WRITE(V1) {
+//   Serial.print("Reset settings");
+//   SPIFFS.format();
+//   wifiManager.resetSettings();
+//   delay(3000);
+//   ESP.reset();
+// }
+
+BLYNK_WRITE(V2) {
+  if (param.asInt()) {
+    digitalWrite(LED_PIN, LOW);
+  } else {
+    digitalWrite(LED_PIN, HIGH);
   }
 }
 
-//}
-
 void loop() {
-  // put your main code here, to run repeatedly:
   Blynk.run();
 }
